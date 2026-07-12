@@ -1,0 +1,270 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://inkling.dev/manifest-schema.json",
+  "title": "Test Manifest",
+  "description": "Inkling — YAML test manifest sema tanimi",
+  "type": "object",
+  "required": ["id", "name", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Benzersiz test kimligi (slug format: kucuk harf, tire ile ayrilmis)",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "examples": ["health-check-status", "e2e-user-signup-flow"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Insan-okunabilir test adi"
+    },
+    "suite": {
+      "type": "string",
+      "description": "DEPRECATED — gruplama icin 'tags' kullanin. Geriye donuk uyum icin opsiyonel."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Filtreleme etiketleri",
+      "examples": [["smoke", "rest", "api"], ["e2e", "grpc"]]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Manifest versiyon numarasi"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Test sorumlusunun adi"
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Varsayilan parametreler. Step icinde {{params.key}} ile kullanilir",
+      "examples": [{"user_id": "123", "limit": "10"}]
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 10000,
+          "description": "Adim basina timeout (ms)"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Basarisiz adim icin retry sayisi"
+        }
+      }
+    },
+    "setup": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" },
+      "description": "Test oncesi calistirilan adimlar"
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" },
+      "minItems": 1,
+      "description": "Ana test adimlari"
+    },
+    "teardown": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" },
+      "description": "Test sonrasi temizlik adimlari"
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "description": "Parametrize calistirma matrisi. Her kombinasyon icin ayri run olusturur"
+    }
+  },
+  "definitions": {
+    "step": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Adim adi (benzersiz olmali, dependsOn icin referans)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["apiCall", "grpcCall", "wsSubscribe", "browserAction", "waitUntil", "assert"],
+          "description": "Adim tipi"
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Bu adimin bagimli oldugu adimlarin adlari (DAG)"
+        },
+        "when": {
+          "type": "string",
+          "description": "Kosullu calistirma ifadesi"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bu adim icin retry sayisi"
+        },
+        "extract": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Yanittan veri cikarma (JSONPath). Sonraki adimlarda {{extract.key}} ile kullanilir"
+        },
+        "assert": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/assertion" },
+          "description": "Dogrulama kurallari"
+        },
+        "use": {
+          "type": "string",
+          "description": "Step template referansi (ornek: get-health)"
+        },
+        "with": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Template degiskenleri. Template icinde {{with.key}} ile kullanilir"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+          "description": "[apiCall] HTTP method"
+        },
+        "path": {
+          "type": "string",
+          "description": "[apiCall] API endpoint yolu. {{params.*}} ve {{extract.*}} destekler"
+        },
+        "baseUrl": {
+          "type": "string",
+          "description": "[apiCall] Base URL override"
+        },
+        "body": {
+          "description": "[apiCall] Request body (JSON object). {{params.*}} ve {{extract.*}} destekler"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "[apiCall] Ek HTTP header'lari"
+        },
+        "signed": {
+          "type": "boolean",
+          "default": false,
+          "description": "[apiCall] HMAC imzalama aktif mi"
+        },
+        "service": {
+          "type": "string",
+          "description": "[grpcCall] gRPC servis FQN (ornek: pkg.v1.MyService)"
+        },
+        "rpcMethod": {
+          "type": "string",
+          "description": "[grpcCall] RPC method adi (ornek: GetAssets)"
+        },
+        "protoFile": {
+          "type": "string",
+          "description": "[grpcCall] Proto dosya yolu (opsiyonel; reflection kullanilir)"
+        },
+        "message": {
+          "description": "[grpcCall] gRPC request message (JSON object)"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "[grpcCall] gRPC metadata key-value"
+        },
+        "target": {
+          "type": "string",
+          "description": "[grpcCall] gRPC hedef (host:port override)"
+        },
+        "deadline": {
+          "type": "integer",
+          "description": "[grpcCall] gRPC deadline (ms)"
+        },
+        "channel": {
+          "type": "string",
+          "description": "[wsSubscribe] Abone olunacak kanal adi (ornek: updates)"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["navigate", "click", "fill", "select", "hover", "press", "screenshot", "waitFor", "waitForSelector", "extractText"],
+          "description": "[browserAction] Tarayici aksiyonu"
+        },
+        "url": {
+          "type": "string",
+          "description": "[browserAction] Hedef URL (navigate icin)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "[browserAction] CSS veya text selector"
+        },
+        "value": {
+          "description": "[browserAction] fill/select degeri"
+        },
+        "screenshotName": {
+          "type": "string",
+          "description": "[browserAction] Ekran goruntusu dosya adi"
+        },
+        "waitMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "[waitUntil] Bekleme suresi (ms)"
+        }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "statusCode",
+            "grpcStatus",
+            "jsonPath",
+            "jsonPathIncludes",
+            "jsonPathNotIncludes",
+            "greaterThan",
+            "lessThan",
+            "nonEmpty",
+            "contains",
+            "wsMessageReceived",
+            "jsonSchema",
+            "sumGreaterThan",
+            "sumLessThan",
+            "avgGreaterThan",
+            "avgLessThan",
+            "countGreaterThan",
+            "countEquals",
+            "minGreaterThan",
+            "maxLessThan"
+          ],
+          "description": "Dogrulama tipi"
+        },
+        "path": {
+          "type": "string",
+          "description": "JSONPath ifadesi (ornek: $.data.assets[0].available)"
+        },
+        "expected": {
+          "description": "Beklenen deger (string, number, boolean, array)"
+        },
+        "tolerance": {
+          "type": "number",
+          "description": "[greaterThan/lessThan] Sayisal tolerans"
+        },
+        "schema": {
+          "type": "string",
+          "description": "[jsonSchema] Inline JSON Schema string'i"
+        },
+        "field": {
+          "type": "string",
+          "description": "Ek alan referansi"
+        }
+      }
+    }
+  }
+}

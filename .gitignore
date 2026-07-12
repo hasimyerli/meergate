@@ -1,0 +1,43 @@
+node_modules/
+dist/
+.next/
+*.db
+*.sqlite
+.env
+.env.local
+.turbo/
+coverage/
+.DS_Store
+.claude
+.cursor
+data/
+
+# Go
+/server
+*.exe
+vendor/
+# build info
+*.tsbuildinfo
+
+# internal strategy — keep local, not public
+feature.md
+
+# local landing work-in-progress
+web/public/landing_redesign_snapshot.html
+web/public/back_up_landing.html
+web/public/landing_selfcontained_backup.html
+
+# session cookie for download script — never commit
+download/cookie.txt
+
+# monorepo build outputs
+api/server
+mock-exchange/bin/
+mock-exchange/mockx
+
+# internal — keep local, not public
+CLAUDE.md
+docs/
+
+# cf.js build tooling — keep local, not public
+web/scripts/

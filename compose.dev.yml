@@ -1,0 +1,25 @@
+# Local development: sadece PostgreSQL ayağa kaldırır.
+# API ve web'i local'de çalıştırmak için:
+#   docker compose -f compose.dev.yml up -d
+#   pnpm dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meergate-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_automation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_automation"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-dev-data:

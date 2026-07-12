@@ -1,0 +1,16 @@
+pre-commit:
+  commands:
+    # Multi-module monorepo: run Go tests per module (api + engine).
+    go-test:
+      glob: "*.go"
+      run: cd api && go test ./... && cd ../engine && go test ./...
+
+commit-msg:
+  commands:
+    validate-commit:
+      run: 'echo "$1" | grep -qE "^(feat|fix|chore|docs|refactor|test|ci|build|perf|style): "'
+
+pre-push:
+  commands:
+    validate-branch:
+      run: 'git rev-parse --abbrev-ref HEAD | grep -qE "^(feat|fix|chore|refactor|test)/[A-Z]+-[0-9]+-"'

@@ -1,0 +1,71 @@
+# Full stack. From the repo root: `make up` (or `docker compose up --build`).
+# Each service builds from its own folder's Dockerfile. mcp is a stdio dev tool,
+# not a runtime service, so it is intentionally not included here.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meergate-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_automation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_automation"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: meergate-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/test_automation?sslmode=disable"
+      MIGRATIONS_PATH: "./migrations"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: meergate-web
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    # Note: Next.js bakes rewrites() + NEXT_PUBLIC_* at BUILD time. The /api
+    # proxy target (http://api:3001) is set as a build ARG in web/Dockerfile;
+    # browser-direct calls default to localhost:3001 (host-published api port).
+    restart: unless-stopped
+
+  mock-exchange:
+    build:
+      context: ./mock-exchange
+      dockerfile: Dockerfile
+    container_name: meergate-mock-exchange
+    ports:
+      - "4010:4010"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

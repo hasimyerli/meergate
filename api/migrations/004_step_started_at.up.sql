@@ -1,0 +1,1 @@
+ALTER TABLE step_results ADD COLUMN IF NOT EXISTS started_at TEXT;

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkling — YAML Test Yürütme Algoritması</title>
+<style>
+  :root {
+    --bg: #f4f5f9;
+    --panel: #ffffff;
+    --panel-2: #fafafe;
+    --ink: #1e2233;
+    --ink-soft: #55607a;
+    --ink-faint: #8a93ab;
+    --line: #e3e6f0;
+    --line-strong: #cdd3e4;
+    --accent: #6366f1;
+    --accent-2: #7c3aed;
+    --violet-soft: #ede9fe;
+    --violet-ink: #6d28d9;
+    --pass: #059669; --pass-bg: #ecfdf5; --pass-line: #a7f3d0;
+    --fail: #dc2626; --fail-bg: #fef2f2; --fail-line: #fecaca;
+    --skip: #d97706; --skip-bg: #fffbeb; --skip-line: #fde68a;
+    --run:  #2563eb; --run-bg:  #eff6ff; --run-line:  #bfdbfe;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20,25,50,.04), 0 8px 24px rgba(20,25,50,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1220; --panel: #171c2e; --panel-2: #1b2136;
+      --ink: #e7eaf3; --ink-soft: #a3abc4; --ink-faint: #6b748e;
+      --line: #2a3149; --line-strong: #39415c;
+      --violet-soft: #2a2350; --violet-ink: #c4b5fd;
+      --pass:#34d399; --pass-bg:#0d2a22; --pass-line:#1c6a52;
+      --fail:#f87171; --fail-bg:#2c1518; --fail-line:#7f2a2f;
+      --skip:#fbbf24; --skip-bg:#2b2110; --skip-line:#7a5a1e;
+      --run:#60a5fa;  --run-bg:#111f38;  --run-line:#2c4a7a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1220; --panel: #171c2e; --panel-2: #1b2136;
+    --ink: #e7eaf3; --ink-soft: #a3abc4; --ink-faint: #6b748e;
+    --line: #2a3149; --line-strong: #39415c;
+    --violet-soft: #2a2350; --violet-ink: #c4b5fd;
+    --pass:#34d399; --pass-bg:#0d2a22; --pass-line:#1c6a52;
+    --fail:#f87171; --fail-bg:#2c1518; --fail-line:#7f2a2f;
+    --skip:#fbbf24; --skip-bg:#2b2110; --skip-line:#7a5a1e;
+    --run:#60a5fa;  --run-bg:#111f38;  --run-line:#2c4a7a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5f9; --panel:#fff; --panel-2:#fafafe;
+    --ink:#1e2233; --ink-soft:#55607a; --ink-faint:#8a93ab;
+    --line:#e3e6f0; --line-strong:#cdd3e4; --violet-soft:#ede9fe; --violet-ink:#6d28d9;
+    --pass:#059669; --pass-bg:#ecfdf5; --pass-line:#a7f3d0;
+    --fail:#dc2626; --fail-bg:#fef2f2; --fail-line:#fecaca;
+    --skip:#d97706; --skip-bg:#fffbeb; --skip-line:#fde68a;
+    --run:#2563eb;  --run-bg:#eff6ff;  --run-line:#bfdbfe;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(18px, 4vw, 48px);
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+
+  header { margin-bottom: 26px; }
+  .brand { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase; color: var(--accent); }
+  .brand .glyph { width:22px; height:22px; border-radius:7px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); display:grid; place-items:center;
+    color:#fff; font-size:12px; }
+  h1 { font-size: clamp(22px, 3.4vw, 32px); margin:.35em 0 .15em; letter-spacing:-.01em; text-wrap:balance; }
+  .sub { color: var(--ink-soft); font-size: 15px; max-width: 68ch; }
+
+  /* legend */
+  .legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin:16px 0 4px; }
+  .chip { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft);
+    padding:4px 9px; border-radius:999px; border:1px solid var(--line); background:var(--panel); }
+  .dot { width:9px; height:9px; border-radius:50%; }
+
+  /* layer band */
+  .layer { background: var(--panel); border:1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px 18px 20px; position:relative; }
+  .layer + .flow { display:grid; place-items:center; height:34px; }
+  .flow svg { display:block; }
+  .lhead { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .lnum { font-family:var(--mono); font-size:11px; font-weight:700; color:#fff;
+    background: var(--accent); border-radius:7px; padding:3px 8px; letter-spacing:.04em; }
+  .ltitle { font-size:15.5px; font-weight:700; }
+  .lnote { font-size:12.5px; color:var(--ink-faint); margin-left:auto; }
+
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:stretch; }
+  .scroll { overflow-x:auto; padding-bottom:4px; }
+
+  /* generic node */
+  .node { border:1px solid var(--line-strong); background:var(--panel-2); border-radius:11px;
+    padding:10px 12px; min-width:150px; }
+  .node .k { font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); font-weight:700; }
+  .node .v { font-family:var(--mono); font-size:12.5px; color:var(--ink); margin-top:3px; }
+  .node .m { font-size:11px; color:var(--ink-soft); margin-top:4px; }
+  .svc { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    padding:1.5px 6px; border-radius:5px; background:var(--violet-soft); color:var(--violet-ink); }
+
+  /* pipeline (layer 2) */
+  .pipe { display:flex; align-items:stretch; gap:0; }
+  .phase { flex:1; min-width:150px; border:1px solid var(--line-strong); background:var(--panel-2);
+    padding:12px 14px; text-align:center; }
+  .phase:first-child { border-radius:11px 0 0 11px; }
+  .phase:last-child { border-radius:0 11px 11px 0; }
+  .phase + .phase { border-left:none; }
+  .phase .p-t { font-family:var(--mono); font-weight:700; font-size:13px; }
+  .phase .p-s { font-size:11px; color:var(--ink-soft); margin-top:4px; }
+  .arrowx { align-self:center; color:var(--ink-faint); padding:0 2px; font-size:15px; }
+
+  /* DAG (layer 3) */
+  .dag { display:grid; grid-template-columns: repeat(3, minmax(160px,1fr)); gap:0; align-items:start; }
+  .batch { padding:0 12px; }
+  .batch + .batch { border-left:1px dashed var(--line-strong); }
+  .btag { font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:700; margin-bottom:9px;
+    display:flex; align-items:center; gap:6px; }
+  .btag .par { font-family:var(--sans); font-weight:600; font-size:10px; color:var(--ink-faint);
+    text-transform:uppercase; letter-spacing:.05em; }
+  .step { border-radius:10px; padding:9px 11px; margin-bottom:9px; border:1px solid; }
+  .step .s-n { font-family:var(--mono); font-size:12.5px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .step .s-d { font-size:10.5px; color:var(--ink-soft); margin-top:4px; font-family:var(--mono); }
+  .step.pass { background:var(--pass-bg); border-color:var(--pass-line); }
+  .step.pass .tick { color:var(--pass); }
+  .dep { font-size:10px; color:var(--ink-faint); }
+  .dep b { color:var(--ink-soft); font-family:var(--mono); font-weight:600; }
+
+  /* extract pool */
+  .pool { margin-top:14px; border:1px dashed var(--accent); background:linear-gradient(0deg,var(--panel-2),var(--panel));
+    border-radius:11px; padding:12px 14px; }
+  .pool .pt { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-bottom:8px; display:flex; align-items:center; gap:7px; }
+  .vars { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .var { font-family:var(--mono); font-size:12px; background:var(--violet-soft); color:var(--violet-ink);
+    padding:3px 9px; border-radius:7px; border:1px solid transparent; }
+  .var .who { color:var(--ink-faint); font-size:10px; }
+  .flowto { color:var(--ink-faint); }
+
+  /* ExecuteStep internals (layer 4) */
+  .inner { display:flex; gap:0; align-items:stretch; }
+  .istep { flex:1; min-width:118px; border:1px solid var(--line-strong); background:var(--panel-2); padding:11px 12px; }
+  .istep:first-child{ border-radius:11px 0 0 11px; } .istep:last-child{ border-radius:0 11px 11px 0; }
+  .istep + .istep { border-left:none; }
+  .istep .i-t { font-family:var(--mono); font-size:12px; font-weight:700; }
+  .istep .i-s { font-size:10.5px; color:var(--ink-soft); margin-top:4px; }
+  .dispatch { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .dtype { font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:6px;
+    border:1px solid var(--line-strong); background:var(--panel); color:var(--ink-soft); }
+  .dtype b { color:var(--ink); }
+
+  /* notes */
+  .notes { margin-top:22px; border-radius:var(--radius); border:1px solid var(--skip-line);
+    background:var(--skip-bg); padding:16px 18px; }
+  .notes h3 { margin:0 0 8px; font-size:13px; color:var(--skip); text-transform:uppercase; letter-spacing:.05em; }
+  .notes ul { margin:0; padding-left:18px; color:var(--ink); font-size:13.5px; }
+  .notes li { margin:5px 0; }
+  .notes code { font-family:var(--mono); font-size:12px; background:var(--panel); padding:1px 5px; border-radius:5px; border:1px solid var(--line); }
+  footer { margin-top:20px; color:var(--ink-faint); font-size:12px; }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="glyph">🐙</span> Inkling · Test Engine</div>
+    <h1>Bir YAML test'i "Run" edilince ne oluyor?</h1>
+    <p class="sub">Manifest bellekte struct'a çözülür, sonra 4 katmanda yürütülür: çok test dağıtımı → tek test yaşam döngüsü → bağımlılık (DAG) motoru → tek adım. Servisler arası veri, paylaşılan <code style="font-family:var(--mono)">extract</code> havuzuyla zincirlenir.</p>
+    <div class="legend">
+      <span class="chip"><span class="dot" style="background:var(--pass)"></span> passed</span>
+      <span class="chip"><span class="dot" style="background:var(--fail)"></span> failed / error</span>
+      <span class="chip"><span class="dot" style="background:var(--skip)"></span> skipped</span>
+      <span class="chip"><span class="dot" style="background:var(--run)"></span> running</span>
+      <span class="chip"><span class="dot" style="background:var(--accent)"></span> extract → interpolate (veri akışı)</span>
+    </div>
+  </header>
+
+  <!-- LAYER 1 -->
+  <section class="layer">
+    <div class="lhead"><span class="lnum">1</span><span class="ltitle">Çok test dağıtımı — servisler/testler arası</span>
+      <span class="lnote">Run All · batch · schedule · gate-evaluate</span></div>
+    <div class="row scroll">
+      <div class="node"><div class="k">test #1</div><div class="v">CreateRun() → runs</div><div class="m">go runner.RunTest(...)</div></div>
+      <div class="node"><div class="k">test #2</div><div class="v">CreateRun() → runs</div><div class="m">go runner.RunTest(...)</div></div>
+      <div class="node"><div class="k">test #3</div><div class="v">CreateRun() → runs</div><div class="m">go runner.RunTest(...)</div></div>
+      <div class="node" style="border-style:dashed;min-width:120px;display:grid;place-items:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">… N test</div>
+      <div class="node" style="background:var(--run-bg);border-color:var(--run-line)">
+        <div class="k" style="color:var(--run)">eşzamanlılık</div>
+        <div class="v" style="color:var(--run)">MAX_CONCURRENCY = 3</div><div class="m">aynı anda koşan test sayısı sınırı (worker pool)</div></div>
+    </div>
+  </section>
+
+  <div class="flow"><svg width="16" height="30"><line x1="8" y1="0" x2="8" y2="22" stroke="var(--line-strong)" stroke-width="2"/><polygon points="8,30 3,22 13,22" fill="var(--line-strong)"/></svg></div>
+
+  <!-- LAYER 2 -->
+  <section class="layer">
+    <div class="lhead"><span class="lnum">2</span><span class="ltitle">Tek test yaşam döngüsü — <span style="font-family:var(--mono);font-weight:600">RunTest()</span></span>
+      <span class="lnote">interpCtx = { params + overrides, extract:{} }</span></div>
+    <div class="pipe scroll">
+      <div class="phase"><div class="p-t">SETUP</div><div class="p-s">sırayla · biri fail → test fail, main atlanır</div></div>
+      <span class="arrowx">→</span>
+      <div class="phase" style="border-color:var(--accent);background:var(--violet-soft)"><div class="p-t" style="color:var(--violet-ink)">MAIN</div><div class="p-s">dependsOn var mı? → DAG · yoksa sırayla</div></div>
+      <span class="arrowx">→</span>
+      <div class="phase"><div class="p-t">TEARDOWN</div><div class="p-s">HER ZAMAN (fail olsa bile) · temizlik</div></div>
+    </div>
+  </section>
+
+  <div class="flow"><svg width="16" height="30"><line x1="8" y1="0" x2="8" y2="22" stroke="var(--line-strong)" stroke-width="2"/><polygon points="8,30 3,22 13,22" fill="var(--line-strong)"/></svg></div>
+
+  <!-- LAYER 3 -->
+  <section class="layer">
+    <div class="lhead"><span class="lnum">3</span><span class="ltitle">Bağımlılık motoru — <span style="font-family:var(--mono);font-weight:600">runDAG()</span> · Kahn topolojik batch</span>
+      <span class="lnote">edge: dep → step · batch = in-degree 0</span></div>
+    <div class="scroll">
+      <div class="dag" style="min-width:560px">
+        <div class="batch">
+          <div class="btag">Batch 0 <span class="par">— seviye</span></div>
+          <div class="step pass"><div class="s-n"><span class="tick">●</span> Login <span class="svc">auth · gRPC</span></div><div class="s-d">extract: token = $.token</div></div>
+        </div>
+        <div class="batch">
+          <div class="btag">Batch 1 <span class="par">— mantıksal paralel</span></div>
+          <div class="step pass"><div class="s-n"><span class="tick">●</span> CreateOrder <span class="svc">order · REST</span></div><div class="s-d">Bearer {{token}} · extract: orderId</div><div class="dep">needs <b>Login</b></div></div>
+          <div class="step pass"><div class="s-n"><span class="tick">●</span> CheckWallet <span class="svc">wallet · gRPC</span></div><div class="s-d">msg: { auth: {{token}} }</div><div class="dep">needs <b>Login</b></div></div>
+        </div>
+        <div class="batch">
+          <div class="btag">Batch 2 <span class="par">— seviye</span></div>
+          <div class="step pass"><div class="s-n"><span class="tick">●</span> CheckHistory <span class="svc">order · REST</span></div><div class="s-d">/history?order={{orderId}}</div><div class="dep">needs <b>CreateOrder</b></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pool">
+      <div class="pt">◆ paylaşılan extract havuzu — servisler arası zincir</div>
+      <div class="vars">
+        <span class="var">token <span class="who">← Login (auth)</span></span>
+        <span class="flowto">→</span>
+        <span class="var">orderId <span class="who">← CreateOrder (order)</span></span>
+        <span class="flowto">→</span>
+        <span class="var" style="background:transparent;border-color:var(--line-strong);color:var(--ink-soft)">CheckHistory {{orderId}} okur</span>
+      </div>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin:12px 0 0">Batch sırayla koşar; bir adım <b style="color:var(--ink-soft)">doğrudan</b> bağımlı olduğu adım <span style="color:var(--fail)">fail</span> ise <span style="color:var(--skip)">skip</span> edilir. Aynı batch'teki adımlar birbirine bağlı değildir.</p>
+  </section>
+
+  <div class="flow"><svg width="16" height="30"><line x1="8" y1="0" x2="8" y2="22" stroke="var(--line-strong)" stroke-width="2"/><polygon points="8,30 3,22 13,22" fill="var(--line-strong)"/></svg></div>
+
+  <!-- LAYER 4 -->
+  <section class="layer">
+    <div class="lhead"><span class="lnum">4</span><span class="ltitle">Tek adım — <span style="font-family:var(--mono);font-weight:600">ExecuteStep()</span></span>
+      <span class="lnote">→ step_results satırı (adım adım sonuç)</span></div>
+    <div class="inner scroll">
+      <div class="istep"><div class="i-t">when?</div><div class="i-s">koşul false → <span style="color:var(--skip)">skip</span></div></div>
+      <span class="arrowx">→</span>
+      <div class="istep"><div class="i-t">retry ×N</div><div class="i-s">step.retries kez dene</div></div>
+      <span class="arrowx">→</span>
+      <div class="istep" style="border-color:var(--accent)"><div class="i-t" style="color:var(--violet-ink)">interpolate</div><div class="i-s">{{param}} / {{extract}} yerleştir</div></div>
+      <span class="arrowx">→</span>
+      <div class="istep"><div class="i-t">dispatch</div><div class="i-s">tipe göre canlı adapter çağrısı</div></div>
+      <span class="arrowx">→</span>
+      <div class="istep"><div class="i-t">assert</div><div class="i-s">statusCode · jsonPath · schema</div></div>
+      <span class="arrowx">→</span>
+      <div class="istep" style="border-color:var(--accent)"><div class="i-t" style="color:var(--violet-ink)">extract</div><div class="i-s">$.jsonPath → havuza yaz</div></div>
+    </div>
+    <div class="dispatch">
+      <span class="dtype"><b>apiCall</b> → LiveAdapter.Rest</span>
+      <span class="dtype"><b>grpcCall</b> → LiveAdapter.GRPC <span style="color:var(--ink-faint)">(hedef: Catalog FQN)</span></span>
+      <span class="dtype"><b>wsSubscribe</b> → WS bekle</span>
+      <span class="dtype"><b>browserAction</b> → chromedp</span>
+      <span class="dtype"><b>waitUntil</b> · <b>assert</b></span>
+    </div>
+  </section>
+
+  <div class="notes">
+    <h3>⚠ Kodun dürüst gerçeği</h3>
+    <ul>
+      <li><b>Paralel seviyeler hesaplanır ve UI'a (cinema mode) gönderilir, ama executor seviye-içini sıralı koşar.</b> Gerçek eşzamanlı <em>adım</em> koşumu henüz yok — test-testler arası paralellik var (<code>MAX_CONCURRENCY</code>).</li>
+      <li><b>Skip transitif değil:</b> bir adım yalnızca doğrudan <code>dependsOn</code>'undaki adım <em>fail</em> ise atlanır. Ara adım <em>skip</em> olduysa, ona dolaylı bağlı adım yine çalışır → <code>{{değişken}}</code> boş kalabilir.</li>
+      <li><b>Döngü (cycle) korumalı:</b> batch boşalırsa kalanlar son batch'e atılır — sonsuz döngü olmaz.</li>
+    </ul>
+  </div>
+
+  <footer>runner.go · executor.go · dag.go — Inkling test engine · gerçek çağrılar canlı (real adapter), sonuçlar <code style="font-family:var(--mono)">runs</code> + <code style="font-family:var(--mono)">step_results</code> tablolarına yazılır.</footer>
+</div>
+
+</body>
+</html>

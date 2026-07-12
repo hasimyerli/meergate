@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mock Exchange API",
+    "description": "Paribu-benzeri kripto borsası taklidi. meerGate demoları için dependency-free (Go stdlib) mock server. Durum bellekte tutulur (DB yok), auth JWT (HS256).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://localhost:4010", "description": "Local mock server" }
+  ],
+  "tags": [
+    { "name": "auth", "description": "Kimlik doğrulama" },
+    { "name": "wallet", "description": "Cüzdan işlemleri" },
+    { "name": "orders", "description": "Alım/satım emirleri" },
+    { "name": "system", "description": "Sistem" }
+  ],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Login ol, JWT üret",
+        "description": "Demo kullanıcısıyla giriş yapıp Bearer token alır. Token'ı diğer isteklerde `Authorization: Bearer <token>` olarak kullan.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "example": { "username": "demo", "password": "demo123" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token üretildi",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Hatalı kullanıcı adı/parola",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/wallet/balances": {
+      "get": {
+        "tags": ["wallet"],
+        "summary": "Cüzdan bakiyeleri",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Güncel bakiyeler",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BalancesResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/wallet/deposit": {
+      "post": {
+        "tags": ["wallet"],
+        "summary": "Para geldi (yatır)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FundRequest" },
+              "example": { "asset": "TRY", "amount": 50000 }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Yatırıldı, yeni bakiyeler",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BalancesResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/wallet/withdraw": {
+      "post": {
+        "tags": ["wallet"],
+        "summary": "Para gitti (çek)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FundRequest" },
+              "example": { "asset": "TRY", "amount": 1000 }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Çekildi, yeni bakiyeler",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BalancesResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/api/orders/buy": {
+      "post": {
+        "tags": ["orders"],
+        "summary": "Kripto aldım",
+        "description": "TRY karşılığında kripto satın alır. TRY bakiyesinden düşer, kripto bakiyesine ekler.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TradeRequest" },
+              "example": { "asset": "BTC", "amount": 0.01 }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Emir gerçekleşti",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TradeResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/api/orders/sell": {
+      "post": {
+        "tags": ["orders"],
+        "summary": "Kripto sattım",
+        "description": "Kriptoyu TRY karşılığında satar. Kripto bakiyesinden düşer, TRY bakiyesine ekler.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TradeRequest" },
+              "example": { "asset": "BTC", "amount": 0.005 }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Emir gerçekleşti",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TradeResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ayakta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "service": { "type": "string", "example": "mock-exchange" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Token yok/geçersiz",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "BadRequest": {
+        "description": "Geçersiz istek gövdesi",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unprocessable": {
+        "description": "İşlenemeyen istek (ör. yetersiz bakiye)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "example": "demo" },
+          "password": { "type": "string", "example": "demo123" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string", "description": "HS256 JWT" },
+          "token_type": { "type": "string", "example": "Bearer" },
+          "expires_in": { "type": "integer", "description": "Saniye", "example": 86400 }
+        }
+      },
+      "FundRequest": {
+        "type": "object",
+        "required": ["asset", "amount"],
+        "properties": {
+          "asset": { "type": "string", "enum": ["TRY", "BTC", "ETH", "USDT", "SOL"], "example": "TRY" },
+          "amount": { "type": "number", "format": "double", "minimum": 0, "example": 50000 }
+        }
+      },
+      "TradeRequest": {
+        "type": "object",
+        "required": ["asset", "amount"],
+        "properties": {
+          "asset": { "type": "string", "enum": ["BTC", "ETH", "USDT", "SOL"], "example": "BTC" },
+          "amount": { "type": "number", "format": "double", "minimum": 0, "example": 0.01 }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "ord_000001" },
+          "side": { "type": "string", "enum": ["buy", "sell"] },
+          "asset": { "type": "string", "example": "BTC" },
+          "amount": { "type": "number", "format": "double", "example": 0.01 },
+          "price": { "type": "number", "format": "double", "description": "Birim başına TRY", "example": 4250000 },
+          "total_try": { "type": "number", "format": "double", "example": 42500 },
+          "filled_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BalancesResponse": {
+        "type": "object",
+        "properties": {
+          "balances": {
+            "type": "object",
+            "additionalProperties": { "type": "number", "format": "double" },
+            "example": { "TRY": 57500, "BTC": 0.01 }
+          },
+          "quote_asset": { "type": "string", "example": "TRY" }
+        }
+      },
+      "TradeResponse": {
+        "type": "object",
+        "properties": {
+          "order": { "$ref": "#/components/schemas/Order" },
+          "balances": {
+            "type": "object",
+            "additionalProperties": { "type": "number", "format": "double" }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "insufficient TRY balance" }
+        }
+      }
+    }
+  }
+}

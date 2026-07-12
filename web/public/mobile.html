@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<meta name="description" content="MeerGate — self-hosted release validation platform for private APIs and microservice workflows." />
+<title>MeerGate — Release Validation for Private APIs</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d96024'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg:#f3f5f7; --surface:#ffffff; --surface-2:#eaeef2;
+    --text:#141922; --muted:#5f6b7b; --faint:#8b96a6; --line:#dde2e8; --line-2:#cbd3dd;
+    --accent:#d96024; --accent-2:#ee7c43; --success:#16a36f; --success-bg:#edf8f4;
+    --warning:#b77417; --warning-bg:#fff7ea;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+    --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --shadow:0 12px 34px -18px rgba(22,29,37,.22);
+    --appbar:56px; --tabbar:62px;
+    --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--tabbar) + var(--sab) + 8px)}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit}
+  .mono{font-family:var(--mono)}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.025em}
+  p{margin:0}
+  .wrap{padding-inline:16px}
+  .eyebrow{font:700 11px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:650;
+    padding:13px 18px;border-radius:11px;border:1px solid transparent;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.ghost{background:var(--surface);color:var(--text);border-color:var(--line-2)}
+  .btn.block{width:100%}
+
+  /* top app bar */
+  .appbar{position:sticky;top:0;z-index:40;height:calc(var(--appbar) + var(--sat));padding-top:var(--sat);
+    display:flex;align-items:center;gap:12px;padding-inline:16px;
+    background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .brand{font-weight:850;font-size:20px;letter-spacing:-.04em}
+  .brand span{color:var(--accent)}
+  .appbar .sp{margin-left:auto}
+  /* lang */
+  .lang{position:relative}
+  .lang-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 11px;border:1px solid var(--line-2);
+    border-radius:10px;background:var(--surface);color:var(--muted);font-size:13px;font-weight:600}
+  .lang-btn .globe{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7}
+  .lang-btn .chev{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s}
+  .lang.open .lang-btn .chev{transform:rotate(180deg)}
+  .lang-menu{position:absolute;top:46px;right:0;min-width:164px;border:1px solid var(--line);border-radius:12px;
+    background:var(--surface);box-shadow:var(--shadow);padding:6px;display:none;z-index:60}
+  .lang.open .lang-menu{display:block}
+  .lang-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;
+    border-radius:8px;color:var(--muted);font-size:14px;font-weight:500;background:none;border:none;text-align:left}
+  .lang-opt.active{color:var(--accent)}
+  .lang-opt .code{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+  section{padding-block:34px}
+  section + section{border-top:1px solid var(--line)}
+  .sec-eyebrow{font:700 11px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:11px}
+  h2.sh{font-size:24px;line-height:1.15;letter-spacing:-.035em}
+  .sh-p{color:var(--muted);font-size:15px;margin-top:12px}
+
+  /* hero */
+  .hero{padding-top:26px}
+  .hero h1{font-size:32px;line-height:1.08;letter-spacing:-.03em}
+  .hero .lead{color:var(--muted);font-size:16px;line-height:1.6;margin-top:16px}
+  .hero .lead strong{color:var(--text);font-weight:600}
+  .hero .cta{display:grid;gap:10px;margin-top:22px}
+  .trust{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:18px;color:var(--faint);font:600 12px var(--mono)}
+  .trust span{display:inline-flex;align-items:center;gap:7px}
+  .trust span::before{content:"■";color:var(--success);font-size:8px}
+
+  /* gate card */
+  .gate-card{margin-top:22px;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
+  .gate-top{display:flex;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line);color:var(--faint);font:600 11px var(--mono)}
+  .gate-status{display:flex;gap:11px;padding:15px;border-bottom:1px solid #cfe8df;background:var(--success-bg)}
+  .status-icon{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#d7f0e7;border:1px solid #9cd6c2;color:var(--success);font-weight:900;flex:none}
+  .gate-status strong{display:block;font-size:14px;margin-bottom:3px}
+  .gate-status p{color:var(--muted);font-size:12.5px}
+  .flow{display:flex;gap:8px;padding:14px 15px 6px;overflow-x:auto}
+  .flow-step{min-width:118px;flex:none;border:1px solid var(--line);border-radius:10px;padding:11px;background:#fbfcfd}
+  .flow-step .mini{font:700 9px var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.1em}
+  .flow-step b{display:block;margin:6px 0 3px;font-size:12.5px}
+  .flow-step small{color:var(--faint);font:500 11px var(--mono)}
+  .flow-arrow{align-self:center;color:var(--accent);font:700 15px var(--mono)}
+  .gate-checks{border-top:1px solid var(--line)}
+  .gcheck{display:flex;align-items:center;gap:11px;padding:11px 15px}
+  .gcheck + .gcheck{border-top:1px solid var(--line)}
+  .gc-icon{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font:800 11px var(--mono);flex:none}
+  .gc-icon.pass{background:#d7f0e7;color:var(--success)} .gc-icon.known{background:var(--warning-bg);color:var(--warning)}
+  .gc-main{flex:1;min-width:0} .gc-main b{display:block;font-size:12.5px} .gc-main small{color:var(--faint);font:500 11px var(--mono)}
+  .gc-count{font:700 12px var(--mono);color:var(--muted)}
+  .gc-pill{font:700 8.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px}
+  .gc-pill.pass{color:var(--success);background:var(--success-bg);border:1px solid #b5e3d2}
+  .gc-pill.known{color:var(--warning);background:var(--warning-bg);border:1px solid #edcf9d}
+  .gate-bar{padding:13px 15px;border-top:1px solid var(--line)}
+  .gb-track{height:8px;border-radius:6px;overflow:hidden;display:flex;background:var(--surface-2)}
+  .gb-track i{display:block;height:100%} .gb-track .p{background:var(--success)} .gb-track .k{background:var(--warning)}
+  .gb-legend{display:flex;align-items:center;gap:14px;margin-top:9px;font:600 11px var(--mono);color:var(--muted)}
+  .gb-legend .d{width:8px;height:8px;border-radius:50%;margin-right:6px;display:inline-block}
+  .gb-legend .d.p{background:var(--success)} .gb-legend .d.k{background:var(--warning)} .gb-legend .tot{margin-left:auto;color:var(--faint)}
+  .gate-metrics{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+  .metric{padding:14px 10px;text-align:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);position:relative}
+  .metric:nth-child(2n){border-right:0} .metric:nth-last-child(-n+2){border-bottom:0}
+  .metric b{display:block;font-size:20px;font-weight:750} .metric small{color:var(--faint);text-transform:uppercase;font:600 9px var(--mono);letter-spacing:.05em;margin-top:4px;display:block}
+  .metric.key b{color:var(--success)} .metric.key::before{content:"";position:absolute;top:0;left:26%;right:26%;height:2px;background:var(--success);border-radius:0 0 2px 2px}
+
+  /* problem */
+  .pcard{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:16px;display:flex;gap:12px}
+  .pcard + .pcard{margin-top:11px}
+  .pcard .pi{width:38px;height:38px;flex:none;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--faint);font:800 12px var(--mono)}
+  .pcard small{display:block;margin-bottom:4px;color:var(--accent);font:700 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+  .pcard strong{display:block;margin-bottom:5px;font-size:15px;letter-spacing:-.01em}
+  .pcard p{color:var(--muted);font-size:13px}
+  .bridge{display:flex;justify-content:center;margin:16px 0}
+  .bridge span{font:800 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);
+    border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:999px;padding:9px 16px;background:var(--surface)}
+  .bridge span::after{content:" ↓"}
+  .outcome{border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
+  .outcome-top{display:flex;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line);color:var(--faint);font:600 11px var(--mono)}
+  .outcome-status{display:flex;gap:11px;padding:15px;background:var(--success-bg);border-bottom:1px solid #cfe8df}
+  .outcome-status strong{display:block;font-size:15px;margin-bottom:3px} .outcome-status p{color:var(--muted);font-size:12.5px}
+  .outcome-q{padding:15px;border-bottom:1px solid var(--line)}
+  .outcome-q small{display:block;margin-bottom:7px;color:var(--faint);font:700 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+  .outcome-q b{display:block;font-size:18px;letter-spacing:-.02em;line-height:1.2}
+  .outcome-ev{display:grid;grid-template-columns:repeat(3,1fr)}
+  .ev{padding:14px 8px;text-align:center;border-right:1px solid var(--line)}
+  .ev:last-child{border-right:0} .ev b{display:block;font-size:19px;font-weight:750} .ev span{color:var(--faint);font:600 8.5px var(--mono);letter-spacing:.05em;text-transform:uppercase}
+  .foot-note{margin-top:16px;color:var(--muted);font-size:13px;text-align:center}
+
+  /* steps */
+  .step{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:17px}
+  .step + .step{margin-top:11px}
+  .step .num{color:var(--accent);font:700 12px var(--mono);margin-bottom:10px}
+  .step h3{font-size:16px;letter-spacing:-.01em} .step p{color:var(--muted);font-size:13.5px;margin-top:6px}
+
+  /* builder (mobile) */
+  .mbuilder{border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow);margin-top:20px}
+  .mb-top{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .mb-name{font:500 11px var(--mono);color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .mb-tabs{display:flex;gap:3px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;flex:none}
+  .mtab{border:0;background:none;color:var(--muted);font:600 11px var(--mono);padding:6px 12px;border-radius:6px}
+  .mtab.active{background:var(--surface);color:var(--accent)}
+  .mb-nodes{padding:18px 16px;display:flex;flex-direction:column;align-items:center}
+  .mnode{width:100%;border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--bg);border-left:3px solid var(--accent)}
+  .mnode.assert{border-left-color:var(--success)}
+  .mnode .t{font:600 9px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--faint)}
+  .mnode b{display:block;margin:7px 0 4px;font-size:13.5px} .mnode code{color:var(--success);font:500 11px var(--mono)}
+  .mconn{width:2px;height:18px;background:var(--line-2)}
+  .mb-view{display:none;padding:16px;border-top:1px solid var(--line);background:var(--surface-2)}
+  .mb-view.active{display:block}
+  .bubble{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px;margin-bottom:10px;font-size:12.5px}
+  .bubble.orange{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .bubble:last-child{margin-bottom:0}
+  .mb-input{display:flex;align-items:center;gap:4px;margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--faint);font-size:12.5px}
+  .mb-input .caret{width:1.5px;height:14px;background:var(--accent);margin-left:2px;animation:blink 1.05s steps(1) infinite}
+  .mb-input .send{margin-left:auto;color:var(--accent)}
+  @keyframes blink{50%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.mb-input .caret{animation:none}}
+  .mb-yaml pre{margin:0;font:500 11.5px/1.8 var(--mono);color:var(--muted);white-space:pre;overflow-x:auto}
+  .mb-yaml .k{color:var(--accent)} .mb-yaml .s{color:var(--success)}
+
+  /* features */
+  .feat{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:16px}
+  .feat + .feat{margin-top:11px}
+  .feat .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#fbe9df;color:var(--accent);font:800 13px var(--mono);margin-bottom:12px}
+  .feat h3{font-size:16px} .feat p{color:var(--muted);font-size:13px;margin-top:6px}
+
+  /* self-hosted */
+  .checklist{display:grid;gap:11px;margin-top:18px}
+  .check{color:var(--muted);font-size:14px} .check::before{content:"✓";color:var(--success);font-weight:900;margin-right:9px}
+  .terminal{margin-top:18px;background:#151a22;border:1px solid #2a313d;border-radius:14px;overflow:hidden;font:500 12px/1.75 var(--mono);color:#d9e1ec}
+  .terminal-top{padding:10px 13px;background:#202632;border-bottom:1px solid #303846;color:#8995a8}
+  .terminal pre{margin:0;padding:16px;overflow-x:auto} .terminal .prompt{color:#69d4ad} .terminal .or{color:var(--accent-2)}
+
+  /* roadmap ladder */
+  .ladder{margin-top:20px;display:grid;gap:11px}
+  .rung{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:16px}
+  .rung .rk{display:flex;align-items:center;gap:9px;font:700 12px var(--mono);color:var(--muted)}
+  .rung .rk::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--faint);flex:none}
+  .rung.done .rk::before{background:var(--muted);border-color:var(--muted)}
+  .rung p{margin-top:11px;color:var(--muted);font-size:13px}
+  .rung.here{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)} .rung.here .rk{color:var(--accent)} .rung.here .rk::before{background:var(--accent);border-color:var(--accent)}
+  .rung.goal{border-style:dashed} .rung.goal .rk{color:var(--faint)}
+  .rbadge{display:inline-block;margin-top:13px;font:700 9px var(--mono);text-transform:uppercase;letter-spacing:.07em;padding:3px 9px;border-radius:20px;color:var(--accent);background:rgba(217,96,36,.08);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+  .rbadge.soon{color:var(--faint);background:transparent;border:1px dashed var(--line)}
+
+  /* cta */
+  .cta-card{border-radius:18px;padding:26px 20px;background:radial-gradient(circle at 88% 12%,rgba(255,255,255,.06),transparent 34%),var(--text);color:#fff;text-align:center;margin-top:8px}
+  .cta-card h2{font-size:23px;line-height:1.15}
+  .cta-card p{color:rgba(255,255,255,.72);font-size:14px;margin-top:10px}
+  .cta-card .cta{display:grid;gap:10px;margin-top:20px}
+  .cta-card .btn.ghost{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2)}
+  .mfoot{margin-top:26px;text-align:center;color:var(--faint);font-size:12.5px}
+  .mfoot strong{color:var(--text)}
+  .mfoot .row2{margin-top:8px;font:500 12px var(--mono)}
+
+  /* bottom tab bar */
+  .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:50;height:calc(var(--tabbar) + var(--sab));padding-bottom:var(--sab);
+    display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--bg) 92%,transparent);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--faint);font-size:10px;font-weight:600}
+  .tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .tab.active{color:var(--accent)}
+  .tab:active{opacity:.6}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <a class="brand" href="#home">Meer<span>Gate</span></a>
+  <span class="sp"></span>
+  <div class="lang" id="lang">
+    <button class="lang-btn" id="langBtn" aria-haspopup="true" aria-expanded="false" aria-label="Language">
+      <svg class="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
+      <span data-lang-label>EN</span>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="lang-menu" role="menu">
+      <button class="lang-opt" data-lang="en">English <span class="code">EN</span></button>
+      <button class="lang-opt" data-lang="tr">Türkçe <span class="code">TR</span></button>
+      <button class="lang-opt" data-lang="pt">Português <span class="code">BR</span></button>
+      <button class="lang-opt" data-lang="de">Deutsch <span class="code">DE</span></button>
+      <button class="lang-opt" data-lang="es">Español <span class="code">ES</span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HOME / HERO -->
+  <section class="wrap hero" id="home">
+    <div class="eyebrow" data-i18n="hero.eyebrow">Open source · Self-hosted · API release validation</div>
+    <h1 data-i18n="hero.h1">Did the new release break a critical workflow?</h1>
+    <p class="lead" data-i18n-html="hero.lead">MeerGate runs your tests in your own network — <strong>from a single API to cross-service end-to-end flows</strong> — comparing them with the last known-good results, and delivering the release decision backed by evidence.</p>
+    <div class="cta">
+      <a class="btn primary block" href="https://github.com/hasimyerli/meergate#quick-start" target="_blank" rel="noreferrer" data-i18n="cta.docker">Try with Docker</a>
+      <a class="btn ghost block" href="https://github.com/hasimyerli/meergate" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </div>
+    <div class="trust">
+      <span data-i18n="trust.1">Data never leaves</span>
+      <span data-i18n="trust.2">No public endpoint</span>
+      <span data-i18n="trust.3">Bring your own AI key</span>
+    </div>
+
+    <div class="gate-card">
+      <div class="gate-top"><span>checkout-flow · release gate</span><span>staging → production</span></div>
+      <div class="gate-status"><div class="status-icon">✓</div><div>
+        <strong data-i18n="gate.status">Ready to ship — no new regressions</strong>
+        <p data-i18n="gate.statusp">Order, wallet and payment services verified in one flow.</p></div></div>
+      <div class="flow">
+        <div class="flow-step"><span class="mini">Order</span><b data-i18n="flow.order">Create order</b><small>POST /orders</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><span class="mini">Wallet</span><b data-i18n="flow.wallet">Debit balance</b><small>POST /withdrawals</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><span class="mini">Payment</span><b data-i18n="flow.payment">Verify payment</b><small>GET /payments/{id}</small></div>
+      </div>
+      <div class="gate-checks">
+        <div class="gcheck"><span class="gc-icon pass">✓</span><div class="gc-main"><b data-i18n="gc.1">Endpoint checks</b><small data-i18n="gc.1s">auto-generated</small></div><span class="gc-count">38</span><span class="gc-pill pass">pass</span></div>
+        <div class="gcheck"><span class="gc-icon pass">✓</span><div class="gc-main"><b data-i18n="gc.2">Cross-service flows</b><small data-i18n="gc.2s">your scenarios</small></div><span class="gc-count">12</span><span class="gc-pill pass">pass</span></div>
+        <div class="gcheck"><span class="gc-icon known">!</span><div class="gc-main"><b data-i18n="gc.3">Known failures</b><small data-i18n="gc.3s">flagged in baseline</small></div><span class="gc-count">2</span><span class="gc-pill known" data-i18n="gc.known">known</span></div>
+      </div>
+      <div class="gate-bar">
+        <div class="gb-track"><i class="p" style="width:96%"></i><i class="k" style="width:4%"></i></div>
+        <div class="gb-legend"><span data-i18n-html="gb.pass"><i class="d p"></i>50 passed</span><span data-i18n-html="gb.known"><i class="d k"></i>2 known</span><span class="tot" data-i18n="gb.total">52 checks</span></div>
+      </div>
+      <div class="gate-metrics">
+        <div class="metric key"><b>0</b><small data-i18n="m.1">new regressions</small></div>
+        <div class="metric"><b>50</b><small data-i18n="m.2">tests passed</small></div>
+        <div class="metric"><b>3</b><small data-i18n="m.3">services</small></div>
+        <div class="metric"><b>82%</b><small data-i18n="m.4">coverage</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="wrap" id="problem">
+    <div class="sec-eyebrow" data-i18n="prob.eyebrow">The problem</div>
+    <h2 class="sh" data-i18n="prob.h2">You have test results. Not release confidence.</h2>
+    <p class="sh-p" data-i18n="prob.p">MeerGate turns scattered test output into the answer to one question: did this change break a critical flow?</p>
+    <div style="margin-top:22px">
+      <div class="pcard"><div class="pi">01</div><div><small data-i18n="p1.k">Scattered knowledge</small><strong data-i18n="p1.h">Postman, scripts and team memory</strong><p data-i18n="p1.p">Critical behavior lives across tools and in people’s heads.</p></div></div>
+      <div class="pcard"><div class="pi">02</div><div><small data-i18n="p2.k">No access</small><strong data-i18n="p2.h">Cloud runners can’t reach private services</strong><p data-i18n="p2.p">Order, wallet and payment flows behind a VPN can’t be verified from outside.</p></div></div>
+      <div class="pcard"><div class="pi">03</div><div><small data-i18n="p3.k">False confidence</small><strong data-i18n="p3.h">“57 tests passed” isn’t enough</strong><p data-i18n="p3.p">You can’t see what the new release changed versus the last safe behavior.</p></div></div>
+    </div>
+    <div class="bridge"><span data-i18n="bridge">MeerGate verifies</span></div>
+    <div class="outcome">
+      <div class="outcome-top"><span>checkout-flow · release decision</span><span>rc.14 → prod</span></div>
+      <div class="outcome-status"><div class="status-icon">✓</div><div><strong data-i18n="out.status">Ready to ship</strong><p data-i18n="out.statusp">Order, wallet and payment flows behave the same as the last safe result.</p></div></div>
+      <div class="outcome-q"><small data-i18n="out.q">The question MeerGate answers</small><b data-i18n="out.qb">Did this change break a critical workflow?</b></div>
+      <div class="outcome-ev">
+        <div class="ev"><b style="color:var(--success)">0</b><span data-i18n="ev.1">New regressions</span></div>
+        <div class="ev"><b>3</b><span data-i18n="ev.2">Services verified</span></div>
+        <div class="ev"><b>12</b><span data-i18n="ev.3">Flow evidence</span></div>
+      </div>
+    </div>
+    <p class="foot-note" data-i18n="prob.foot">The decision comes not from a single endpoint result, but from cross-service behavior, the baseline diff and execution evidence.</p>
+  </section>
+
+  <!-- HOW -->
+  <section class="wrap" id="how">
+    <div class="sec-eyebrow" data-i18n="nav.how">How it works</div>
+    <h2 class="sh" data-i18n="how.h2">From API to release decision in four steps</h2>
+    <p class="sh-p" data-i18n="how.p">Verify an endpoint, a single service or a critical cross-service workflow with the same model.</p>
+    <div style="margin-top:22px">
+      <div class="step"><div class="num" data-i18n="s1.n">01 / CONNECT</div><h3 data-i18n="s1.h">Discover your services</h3><p data-i18n="s1.p">Add services via OpenAPI, gRPC reflection or existing endpoint info.</p></div>
+      <div class="step"><div class="num" data-i18n="s2.n">02 / DEFINE</div><h3 data-i18n="s2.h">Describe the workflow</h3><p data-i18n="s2.p">Build the expected behavior with natural language, the visual builder or YAML.</p></div>
+      <div class="step"><div class="num" data-i18n="s3.n">03 / RUN</div><h3 data-i18n="s3.h">Verify in your own network</h3><p data-i18n="s3.p">Run every step locally, behind a VPN or inside Kubernetes.</p></div>
+      <div class="step"><div class="num" data-i18n="s4.n">04 / DECIDE</div><h3 data-i18n="s4.h">See the release risk</h3><p data-i18n="s4.p">Compare the new result with the last safe release: ready, blocked or no baseline.</p></div>
+    </div>
+  </section>
+
+  <!-- BUILD -->
+  <section class="wrap" id="build">
+    <div class="sec-eyebrow" data-i18n="b.eyebrow">AI, under human control</div>
+    <h2 class="sh" data-i18n="b.h2">AI drafts the flow. You stay in control.</h2>
+    <p class="sh-p" data-i18n="b.p">Review, edit and run the generated plan via the visual builder or YAML.</p>
+    <div class="mbuilder">
+      <div class="mb-top">
+        <span class="mb-name">Test Builder · insufficient-balance-order</span>
+        <div class="mb-tabs"><button class="mtab active" data-mview="chat" type="button">Chat</button><button class="mtab" data-mview="yaml" type="button">YAML</button></div>
+      </div>
+      <div class="mb-nodes">
+        <div class="mnode"><div class="t">HTTP · order</div><b data-i18n="flow.order">Create order</b><code>POST /orders · assert 201</code></div>
+        <div class="mconn"></div>
+        <div class="mnode"><div class="t">HTTP · wallet</div><b data-i18n="dn.wallet">Attempt withdrawal</b><code>POST /withdrawals · assert 400</code></div>
+        <div class="mconn"></div>
+        <div class="mnode assert"><div class="t" data-i18n="dn.type">check</div><b data-i18n="dn.assert">Verify final state</b><code>order == FAILED</code></div>
+      </div>
+      <div class="mb-view mv-chat active">
+        <div class="bubble orange" data-i18n="b1">On insufficient balance the order must be FAILED and the wallet balance must not change.</div>
+        <div class="bubble" data-i18n="b2">Verified that correlation_id is propagated between the two services.</div>
+        <div class="bubble" data-i18n="b3">One assumption needs review: is the retry behavior idempotent?</div>
+        <div class="mb-input"><span data-i18n="b.input">Describe a fix or add an assertion…</span><span class="caret"></span><span class="send">➤</span></div>
+      </div>
+      <div class="mb-view mv-yaml">
+        <div class="mb-yaml"><pre><span class="k">name</span>: insufficient-balance-order
+<span class="k">steps</span>:
+  - <span class="k">apiCall</span>: <span class="s">POST /orders</span>
+    <span class="k">assert</span>: { status: 201 }
+  - <span class="k">apiCall</span>: <span class="s">POST /withdrawals</span>
+    <span class="k">assert</span>: { status: 400 }
+  - <span class="k">assert</span>: order == <span class="s">"FAILED"</span></pre></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY / features + self-hosted + roadmap -->
+  <section class="wrap" id="why">
+    <div class="sec-eyebrow" data-i18n="f.eyebrow">Why MeerGate?</div>
+    <h2 class="sh" data-i18n="f.h2">Measure release risk, not test count</h2>
+    <div style="margin-top:22px">
+      <div class="feat"><div class="ic">01</div><h3 data-i18n="gc.2">Cross-service flows</h3><p data-i18n="f1.p">Combine order, wallet, payment and browser steps in one scenario.</p></div>
+      <div class="feat"><div class="ic">02</div><h3 data-i18n="f2.h">Compare with the last safe release</h3><p data-i18n="f2.p">Tell known failures apart from new regressions this release introduced.</p></div>
+      <div class="feat"><div class="ic">03</div><h3 data-i18n="f3.h">Run inside a private network</h3><p data-i18n="f3.p">Endpoints, credentials and test data never leave your environment.</p></div>
+      <div class="feat"><div class="ic">04</div><h3 data-i18n="f4.h">Evidence behind the decision</h3><p data-i18n="f4.p">Inspect requests, responses, assertions, diffs and coverage together.</p></div>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:30px 0">
+    <div class="sec-eyebrow" data-i18n="sh.eyebrow">Self-hosted by default</div>
+    <h2 class="sh" data-i18n="sh.h2">Own your verification infrastructure</h2>
+    <p class="sh-p" data-i18n="sh.p">Run MeerGate locally, behind a VPN or in your own Kubernetes. Test private services without exposing them to the internet.</p>
+    <div class="checklist">
+      <div class="check" data-i18n="sh.c1">Quick setup with Docker Compose</div>
+      <div class="check" data-i18n="sh.c2">Your own PostgreSQL and secret management</div>
+      <div class="check" data-i18n="sh.c3">Your own LLM provider or a local model</div>
+      <div class="check" data-i18n="sh.c4">SSO, RBAC and audit options for enterprise</div>
+    </div>
+    <div class="terminal">
+      <div class="terminal-top">meergate / quickstart</div>
+      <pre><span class="prompt">$</span> git clone https://github.com/hasimyerli/meergate.git
+<span class="prompt">$</span> cd meergate &amp;&amp; make up
+
+<span class="or">✓</span> api        :3001
+<span class="or">✓</span> web        :3000
+<span class="or">✓</span> postgres   healthy
+
+<span class="prompt">MeerGate is ready.</span></pre>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:30px 0">
+    <div class="sec-eyebrow" data-i18n="road.eyebrow">Where MeerGate is going</div>
+    <h2 class="sh" data-i18n="road.h2">From verification today to an autonomous release agent</h2>
+    <p class="sh-p" data-i18n="road.p">Verification is the foundation. The direction is an agent that runs it for you.</p>
+    <div class="ladder">
+      <div class="rung done"><div class="rk" data-i18n="road.l0k">L0 · Manual</div><p data-i18n="road.l0p">You write, run and read API tests yourself.</p></div>
+      <div class="rung done"><div class="rk" data-i18n="road.l1k">L1 · AI-assisted</div><p data-i18n="road.l1p">Describe a scenario; AI builds the executable test and you review it.</p></div>
+      <div class="rung here"><div class="rk" data-i18n="road.l2k">L2 · Continuous verification</div><p data-i18n="road.l2p">Scheduled reruns, release gates against a baseline, coverage mapping.</p><span class="rbadge" data-i18n="road.here">You are here</span></div>
+      <div class="rung goal"><div class="rk" data-i18n="road.l3k">L3 · Release agent</div><p data-i18n="road.l3p">A goal-driven agent plans, runs, interprets and proposes the release decision.</p><span class="rbadge soon" data-i18n="road.soon">on the roadmap</span></div>
+    </div>
+  </section>
+
+  <!-- START / CTA + footer -->
+  <section class="wrap" id="start">
+    <div class="cta-card">
+      <h2 data-i18n="cta.h2">Ship your next API release with evidence, not guesswork.</h2>
+      <p data-i18n="cta.p">From a single endpoint to critical cross-service workflows.</p>
+      <div class="cta">
+        <a class="btn primary block" href="https://github.com/hasimyerli/meergate#quick-start" target="_blank" rel="noreferrer" data-i18n="cta.docker">Try with Docker</a>
+        <a class="btn ghost block" href="https://github.com/hasimyerli/meergate" target="_blank" rel="noreferrer" data-i18n="cta.btn">Explore on GitHub ↗</a>
+      </div>
+    </div>
+    <div class="mfoot">
+      <div data-i18n-html="foot.1"><strong>MeerGate</strong> · Open-source release validation for private APIs.</div>
+      <div class="row2" data-i18n="foot.2">Product · Documentation · GitHub · Enterprise</div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" aria-label="Sections">
+  <a class="tab" href="#home" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="tab.home">Home</span></a>
+  <a class="tab" href="#problem" data-tab="problem"><svg viewBox="0 0 24 24"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/><path d="M10.3 3.3 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/></svg><span data-i18n="tab.problem">Problem</span></a>
+  <a class="tab" href="#how" data-tab="how"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M20.5 13.5a2 2 0 0 0 .4 2.2 2 2 0 1 1-2.8 2.8 2 2 0 0 0-3.4 1.4 2 2 0 1 1-4 0 2 2 0 0 0-3.4-1.4 2 2 0 1 1-2.8-2.8 2 2 0 0 0 .4-2.2 2 2 0 0 0-1.9-1.2 2 2 0 1 1 0-4 2 2 0 0 0 1.9-1.2 2 2 0 0 0-.4-2.2 2 2 0 1 1 2.8-2.8 2 2 0 0 0 3.4-1.4 2 2 0 1 1 4 0 2 2 0 0 0 3.4 1.4 2 2 0 1 1 2.8 2.8 2 2 0 0 0-.4 2.2 2 2 0 0 0 1.9 1.2 2 2 0 1 1 0 4 2 2 0 0 0-1.9 1.2z"/></svg><span data-i18n="tab.how">How</span></a>
+  <a class="tab" href="#build" data-tab="build"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4a3 3 0 0 1 3 3V14"/></svg><span data-i18n="tab.build">Build</span></a>
+  <a class="tab" href="#start" data-tab="start"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span data-i18n="tab.start">Start</span></a>
+</nav>
+
+<script>
+  const I18N = {"en":{"meta.title":"MeerGate — Release Validation for Private APIs","nav.product":"Product","nav.how":"How it works","nav.self":"Self-hosted","nav.oss":"Open source","cta.docker":"Try with Docker","hero.eyebrow":"Open source · Self-hosted · API release validation","hero.h1":"Did the new release break a critical workflow?","hero.lead":"MeerGate runs your tests in your own network — <strong>from a single API to cross-service end-to-end flows</strong> — comparing them with the last known-good results, and delivering the release decision backed by evidence.","hero.cta2":"Explore the product →","trust.1":"Data never leaves","trust.2":"No public endpoint","trust.3":"Bring your own AI key","gate.status":"Ready to ship — no new regressions","gate.statusp":"Order, wallet and payment services verified in one flow.","flow.order":"Create order","flow.wallet":"Debit balance","flow.payment":"Verify payment","gc.1":"Endpoint checks","gc.1s":"auto-generated","gc.2":"Cross-service flows","gc.2s":"your scenarios","gc.3":"Known failures","gc.3s":"flagged in baseline","gc.known":"known","gb.pass":"<i class=\"d p\"></i>50 passed","gb.known":"<i class=\"d k\"></i>2 known","gb.total":"52 checks","m.1":"new regressions","m.2":"tests passed","m.3":"services","m.4":"coverage","prob.eyebrow":"The problem","prob.h2":"You have test results. Not release confidence.","prob.p":"MeerGate turns scattered test output into the answer to one question: did this change break a critical flow?","p1.k":"Scattered knowledge","p1.h":"Postman, scripts and team memory","p1.p":"Critical behavior lives across tools and in people’s heads.","p2.k":"No access","p2.h":"Cloud runners can’t reach private services","p2.p":"Order, wallet and payment flows behind a VPN can’t be verified from outside.","p3.k":"False confidence","p3.h":"“57 tests passed” isn’t enough","p3.p":"You can’t see what the new release changed versus the last safe behavior.","bridge":"MeerGate<br>verifies","out.status":"Ready to ship","out.statusp":"Order, wallet and payment flows behave the same as the last safe result.","out.q":"The question MeerGate answers","out.qb":"Did this change break a critical workflow?","ev.1":"New regressions","ev.2":"Services verified","ev.3":"Flow evidence","prob.foot":"The decision comes not from a single endpoint result, but from cross-service behavior, the baseline diff and execution evidence.","how.h2":"From API to release decision in four steps","how.p":"Verify an endpoint, a single service or a critical cross-service workflow with the same model.","s1.n":"01 / CONNECT","s1.h":"Discover your services","s1.p":"Add services via OpenAPI, gRPC reflection or existing endpoint info.","s2.n":"02 / DEFINE","s2.h":"Describe the workflow","s2.p":"Build the expected behavior with natural language, the visual builder or YAML.","s3.n":"03 / RUN","s3.h":"Verify in your own network","s3.p":"Run every step locally, behind a VPN or inside Kubernetes.","s4.n":"04 / DECIDE","s4.h":"See the release risk","s4.p":"Compare the new result with the last safe release: ready, blocked or no baseline.","b.eyebrow":"AI, under human control","b.h2":"AI drafts the flow. You stay in control.","b.p":"Review, edit and run the generated plan via the visual builder or YAML.","b.flow":"Flow","b.run":"Run","dn.wallet":"Attempt withdrawal","dn.type":"check","dn.assert":"Verify final state","dn.tag":"balance unchanged","b1":"On insufficient balance the order must be FAILED and the wallet balance must not change.","b2":"Verified that correlation_id is propagated between the two services.","b3":"One assumption needs review: is the retry behavior idempotent?","b.input":"Describe a fix or add an assertion…","f.eyebrow":"Why MeerGate?","f.h2":"Measure release risk, not test count","f1.p":"Combine order, wallet, payment and browser steps in one scenario.","f2.h":"Compare with the last safe release","f2.p":"Tell known failures apart from new regressions this release introduced.","f3.h":"Run inside a private network","f3.p":"Endpoints, credentials and test data never leave your environment.","f4.h":"Evidence behind the decision","f4.p":"Inspect requests, responses, assertions, diffs and coverage together.","sh.eyebrow":"Self-hosted by default","sh.h2":"Own your verification infrastructure","sh.p":"Run MeerGate locally, behind a VPN or in your own Kubernetes. Test private services without exposing them to the internet.","sh.c1":"Quick setup with Docker Compose","sh.c2":"Your own PostgreSQL and secret management","sh.c3":"Your own LLM provider or a local model","sh.c4":"SSO, RBAC and audit options for enterprise","cta.h2":"Ship your next API release with evidence, not guesswork.","cta.p":"From a single endpoint to critical cross-service workflows.","cta.btn":"Explore on GitHub ↗","foot.1":"<strong>MeerGate</strong> · Open-source release validation for private APIs.","foot.2":"Product · Documentation · GitHub · Enterprise","nav.roadmap":"Roadmap","road.eyebrow":"Where MeerGate is going","road.h2":"From verification today to an autonomous release agent","road.p":"Verification is the foundation. The direction is an agent that runs it for you.","road.here":"You are here","road.soon":"on the roadmap","road.l0k":"L0 · Manual","road.l0p":"You write, run and read API tests yourself.","road.l1k":"L1 · AI-assisted","road.l1p":"Describe a scenario; AI builds the executable test and you review it.","road.l2k":"L2 · Continuous verification","road.l2p":"Scheduled reruns, release gates against a baseline, coverage mapping.","road.l3k":"L3 · Release agent","road.l3p":"A goal-driven agent plans, runs, interprets and proposes the release decision.","tab.home":"Home","tab.problem":"Problem","tab.how":"How","tab.build":"Build","tab.start":"Start"},"tr":{"meta.title":"MeerGate — Özel API’ler için Sürüm Doğrulama","nav.product":"Ürün","nav.how":"Nasıl çalışır","nav.self":"Self-hosted","nav.oss":"Açık kaynak","cta.docker":"Docker ile dene","hero.eyebrow":"Açık kaynak · Self-hosted · API sürüm doğrulama","hero.h1":"Yeni sürüm kritik bir iş akışını bozdu mu?","hero.lead":"MeerGate testlerini kendi ağında çalıştırır — <strong>tek bir API’den servisler arası uçtan uca akışlara kadar</strong> — son güvenli sonuçlarla karşılaştırır ve yayın kararını kanıtlarıyla sunar.","hero.cta2":"Ürünü incele →","trust.1":"Veri dışarı çıkmaz","trust.2":"Public endpoint gerekmez","trust.3":"Kendi AI anahtarını kullan","gate.status":"Yayına hazır — yeni regresyon yok","gate.statusp":"Order, wallet ve payment servisleri tek akışta doğrulandı.","flow.order":"Sipariş oluştur","flow.wallet":"Bakiyeyi düş","flow.payment":"Ödemeyi doğrula","gc.1":"Endpoint doğrulamaları","gc.1s":"otomatik üretilen","gc.2":"Servisler arası akışlar","gc.2s":"senin senaryoların","gc.3":"Bilinen hatalar","gc.3s":"baseline’da işaretli","gc.known":"bilinen","gb.pass":"<i class=\"d p\"></i>50 geçti","gb.known":"<i class=\"d k\"></i>2 bilinen","gb.total":"52 kontrol","m.1":"yeni regresyon","m.2":"test geçti","m.3":"servis","m.4":"coverage","prob.eyebrow":"Sorun","prob.h2":"Test sonucun var. Yayın güvenin yok.","prob.p":"MeerGate dağınık test çıktısını tek bir sorunun cevabına dönüştürür: bu değişiklik kritik bir akışı bozdu mu?","p1.k":"Dağınık bilgi","p1.h":"Postman, script ve ekip hafızası","p1.p":"Kritik davranış farklı araçlarda ve insanların kafasında kalır.","p2.k":"Eksik erişim","p2.h":"Cloud runner private servise ulaşamaz","p2.p":"VPN arkasındaki order, wallet ve payment akışları dışarıdan doğrulanamaz.","p3.k":"Yanlış güven","p3.h":"“57 test geçti” tek başına yetmez","p3.p":"Yeni sürümün son güvenli davranıştan neyi değiştirdiği görünmez.","bridge":"MeerGate<br>doğrular","out.status":"Yayına hazır","out.statusp":"Order, wallet ve payment akışı son güvenli sonuçla aynı davranıyor.","out.q":"MeerGate’in cevapladığı soru","out.qb":"Bu değişiklik kritik bir iş akışını bozdu mu?","ev.1":"Yeni regresyon","ev.2":"Servis doğrulandı","ev.3":"Akış kanıtı","prob.foot":"Karar tek bir endpoint sonucundan değil; servisler arası davranış, baseline farkı ve çalıştırma kanıtından üretilir.","how.h2":"API’den yayın kararına dört adım","how.p":"Bir endpoint’i, tek bir servisi veya kritik servisler arası bir iş akışını aynı modelle doğrula.","s1.n":"01 / BAĞLA","s1.h":"Servislerini keşfet","s1.p":"Servislerini OpenAPI, gRPC reflection veya mevcut endpoint bilgisiyle ekle.","s2.n":"02 / TANIMLA","s2.h":"İş akışını anlat","s2.p":"Beklenen davranışı doğal dil, görsel builder veya YAML ile oluştur.","s3.n":"03 / ÇALIŞTIR","s3.h":"Kendi ağında doğrula","s3.p":"Her adımı local, VPN arkasında veya Kubernetes içinde çalıştır.","s4.n":"04 / KARAR VER","s4.h":"Yayın riskini gör","s4.p":"Yeni sonucu son güvenli sürümle karşılaştır: hazır, bloklu veya baseline yok.","b.eyebrow":"İnsan kontrolünde AI","b.h2":"Akışın taslağını AI çizer. Kontrol sende kalır.","b.p":"Üretilen planı görsel builder veya YAML üzerinden incele, düzenle ve çalıştır.","b.flow":"Akış","b.run":"Çalıştır","dn.wallet":"Para çekmeyi dene","dn.type":"kontrol","dn.assert":"Son durumu doğrula","dn.tag":"balance sabit","b1":"Yetersiz bakiyede order FAILED olmalı ve wallet bakiyesi değişmemeli.","b2":"İki servis arasında correlation_id taşınması doğrulandı.","b3":"Bir varsayım gözden geçirilmeli: retry davranışı idempotent mi?","b.input":"Bir düzeltme yaz ya da assertion ekle…","f.eyebrow":"Neden MeerGate?","f.h2":"Test sayısını değil, yayın riskini ölç","f1.p":"Order, wallet, payment ve browser adımlarını tek senaryoda birleştir.","f2.h":"Son güvenli sürümle karşılaştır","f2.p":"Bilinen hataları bu sürümün getirdiği yeni regresyonlardan ayır.","f3.h":"Private network içinde çalış","f3.p":"Endpoint, kimlik bilgisi ve test verisi ortamından dışarı çıkmaz.","f4.h":"Kararın arkasındaki kanıt","f4.p":"Request, response, assertion, fark ve coverage sonuçlarını birlikte incele.","sh.eyebrow":"Varsayılan olarak self-hosted","sh.h2":"Doğrulama altyapının sahibi ol","sh.p":"MeerGate’i local, VPN arkasında veya kendi Kubernetes ortamında çalıştır. Private servisleri internete açmadan test et.","sh.c1":"Docker Compose ile hızlı kurulum","sh.c2":"Kendi PostgreSQL ve secret yönetimin","sh.c3":"Kendi LLM sağlayıcın veya local modelin","sh.c4":"Enterprise için SSO, RBAC ve audit seçenekleri","cta.h2":"Bir sonraki API sürümünü tahminle değil, kanıtla yayınla.","cta.p":"Tek bir endpoint’ten kritik servisler arası iş akışlarına kadar.","cta.btn":"GitHub’da incele ↗","foot.1":"<strong>MeerGate</strong> · Özel API’ler için açık kaynak sürüm doğrulama.","foot.2":"Ürün · Dokümantasyon · GitHub · Enterprise","nav.roadmap":"Yol haritası","road.eyebrow":"MeerGate nereye gidiyor","road.h2":"Bugünkü doğrulamadan otonom bir release agent’a","road.p":"Doğrulama temeldir. Yön ise onu senin yerine çalıştıran bir agent.","road.here":"Şu an buradayız","road.soon":"yol haritasında","road.l0k":"L0 · Manuel","road.l0p":"API testlerini kendin yazar, çalıştırır ve okursun.","road.l1k":"L1 · AI destekli","road.l1p":"Bir senaryo anlat; AI çalıştırılabilir testi kurar, sen incelersin.","road.l2k":"L2 · Sürekli doğrulama","road.l2p":"Zamanlanmış tekrarlar, baseline’a karşı release gate’ler, coverage haritalama.","road.l3k":"L3 · Release agent","road.l3p":"Hedef odaklı bir agent planlar, çalıştırır, yorumlar ve yayın kararını önerir.","tab.home":"Ana sayfa","tab.problem":"Sorun","tab.how":"Nasıl","tab.build":"Kur","tab.start":"Başla"},"pt":{"meta.title":"MeerGate — Validação de Release para APIs privadas","nav.product":"Produto","nav.how":"Como funciona","nav.self":"Self-hosted","nav.oss":"Código aberto","cta.docker":"Testar com Docker","hero.eyebrow":"Código aberto · Self-hosted · Validação de release de API","hero.h1":"A nova release quebrou um fluxo crítico?","hero.lead":"O MeerGate roda seus testes na sua própria rede — <strong>de uma única API a fluxos ponta a ponta entre serviços</strong> — comparando com os últimos resultados seguros e entregando a decisão de release com evidências.","hero.cta2":"Explorar o produto →","trust.1":"Os dados não saem","trust.2":"Sem endpoint público","trust.3":"Use sua própria chave de IA","gate.status":"Pronto para publicar — sem novas regressões","gate.statusp":"Serviços de order, wallet e payment verificados em um único fluxo.","flow.order":"Criar pedido","flow.wallet":"Debitar saldo","flow.payment":"Verificar pagamento","gc.1":"Verificações de endpoint","gc.1s":"geradas automaticamente","gc.2":"Fluxos entre serviços","gc.2s":"seus cenários","gc.3":"Falhas conhecidas","gc.3s":"marcadas na baseline","gc.known":"conhecida","gb.pass":"<i class=\"d p\"></i>50 aprovados","gb.known":"<i class=\"d k\"></i>2 conhecidas","gb.total":"52 verificações","m.1":"novas regressões","m.2":"testes aprovados","m.3":"serviços","m.4":"cobertura","prob.eyebrow":"O problema","prob.h2":"Você tem resultados de teste. Não confiança para publicar.","prob.p":"O MeerGate transforma a saída dispersa de testes na resposta a uma pergunta: essa mudança quebrou um fluxo crítico?","p1.k":"Conhecimento disperso","p1.h":"Postman, scripts e memória da equipe","p1.p":"O comportamento crítico vive espalhado por ferramentas e na cabeça das pessoas.","p2.k":"Sem acesso","p2.h":"Runners na nuvem não alcançam serviços privados","p2.p":"Fluxos de order, wallet e payment atrás de uma VPN não podem ser verificados de fora.","p3.k":"Confiança falsa","p3.h":"“57 testes aprovados” não basta","p3.p":"Você não vê o que a nova release mudou em relação ao último comportamento seguro.","bridge":"MeerGate<br>verifica","out.status":"Pronto para publicar","out.statusp":"Os fluxos de order, wallet e payment se comportam igual ao último resultado seguro.","out.q":"A pergunta que o MeerGate responde","out.qb":"Essa mudança quebrou um fluxo crítico?","ev.1":"Novas regressões","ev.2":"Serviços verificados","ev.3":"Evidência de fluxo","prob.foot":"A decisão não vem de um único resultado de endpoint, mas do comportamento entre serviços, do diff da baseline e da evidência de execução.","how.h2":"Da API à decisão de release em quatro passos","how.p":"Verifique um endpoint, um único serviço ou um fluxo crítico entre serviços com o mesmo modelo.","s1.n":"01 / CONECTAR","s1.h":"Descubra seus serviços","s1.p":"Adicione serviços via OpenAPI, reflection gRPC ou informações de endpoint existentes.","s2.n":"02 / DEFINIR","s2.h":"Descreva o fluxo","s2.p":"Construa o comportamento esperado com linguagem natural, o builder visual ou YAML.","s3.n":"03 / EXECUTAR","s3.h":"Verifique na sua própria rede","s3.p":"Execute cada passo localmente, atrás de uma VPN ou dentro do Kubernetes.","s4.n":"04 / DECIDIR","s4.h":"Veja o risco da release","s4.p":"Compare o novo resultado com a última release segura: pronto, bloqueado ou sem baseline.","b.eyebrow":"IA, sob controle humano","b.h2":"A IA rascunha o fluxo. Você mantém o controle.","b.p":"Revise, edite e execute o plano gerado pelo builder visual ou por YAML.","b.flow":"Fluxo","b.run":"Executar","dn.wallet":"Tentar saque","dn.type":"verificação","dn.assert":"Verificar estado final","dn.tag":"saldo inalterado","b1":"Com saldo insuficiente o order deve ficar FAILED e o saldo da wallet não pode mudar.","b2":"Verificado que o correlation_id é propagado entre os dois serviços.","b3":"Uma suposição precisa de revisão: o comportamento de retry é idempotente?","b.input":"Descreva uma correção ou adicione uma assertion…","f.eyebrow":"Por que MeerGate?","f.h2":"Meça o risco de release, não a quantidade de testes","f1.p":"Combine passos de order, wallet, payment e browser em um único cenário.","f2.h":"Compare com a última release segura","f2.p":"Diferencie falhas conhecidas das novas regressões que esta release introduziu.","f3.h":"Rode dentro de uma rede privada","f3.p":"Endpoints, credenciais e dados de teste nunca saem do seu ambiente.","f4.h":"Evidência por trás da decisão","f4.p":"Inspecione requisições, respostas, assertions, diffs e cobertura juntos.","sh.eyebrow":"Self-hosted por padrão","sh.h2":"Seja dono da sua infraestrutura de validação","sh.p":"Rode o MeerGate localmente, atrás de uma VPN ou no seu próprio Kubernetes. Teste serviços privados sem expô-los à internet.","sh.c1":"Instalação rápida com Docker Compose","sh.c2":"Seu próprio PostgreSQL e gestão de secrets","sh.c3":"Seu próprio provedor de LLM ou um modelo local","sh.c4":"Opções de SSO, RBAC e auditoria para enterprise","cta.h2":"Publique sua próxima release de API com evidências, não com achismo.","cta.p":"De um único endpoint a fluxos críticos entre serviços.","cta.btn":"Explorar no GitHub ↗","foot.1":"<strong>MeerGate</strong> · Validação de release de código aberto para APIs privadas.","foot.2":"Produto · Documentação · GitHub · Enterprise","nav.roadmap":"Roadmap","road.eyebrow":"Para onde o MeerGate vai","road.h2":"Da verificação de hoje a um agente de release autônomo","road.p":"A verificação é a base. A direção é um agente que a executa por você.","road.here":"Você está aqui","road.soon":"no roadmap","road.l0k":"L0 · Manual","road.l0p":"Você escreve, executa e lê os testes de API.","road.l1k":"L1 · Assistido por IA","road.l1p":"Descreva um cenário; a IA cria o teste executável e você revisa.","road.l2k":"L2 · Verificação contínua","road.l2p":"Reexecuções agendadas, release gates contra uma baseline, mapeamento de cobertura.","road.l3k":"L3 · Agente de release","road.l3p":"Um agente orientado a objetivos planeja, executa, interpreta e propõe a decisão de release.","tab.home":"Início","tab.problem":"Problema","tab.how":"Como","tab.build":"Criar","tab.start":"Começar"},"de":{"meta.title":"MeerGate — Release-Validierung für private APIs","nav.product":"Produkt","nav.how":"So funktioniert’s","nav.self":"Self-hosted","nav.oss":"Open Source","cta.docker":"Mit Docker testen","hero.eyebrow":"Open Source · Self-hosted · API-Release-Validierung","hero.h1":"Hat das neue Release einen kritischen Workflow zerstört?","hero.lead":"MeerGate führt deine Tests in deinem eigenen Netzwerk aus — <strong>von einer einzelnen API bis zu serviceübergreifenden End-to-End-Flows</strong> — vergleicht sie mit den letzten sicheren Ergebnissen und liefert die Release-Entscheidung mit Nachweisen.","hero.cta2":"Produkt ansehen →","trust.1":"Daten verlassen dich nie","trust.2":"Kein öffentlicher Endpoint","trust.3":"Eigenen AI-Key nutzen","gate.status":"Bereit zum Ausliefern — keine neuen Regressionen","gate.statusp":"Order-, Wallet- und Payment-Services in einem Flow verifiziert.","flow.order":"Bestellung anlegen","flow.wallet":"Guthaben abbuchen","flow.payment":"Zahlung prüfen","gc.1":"Endpoint-Prüfungen","gc.1s":"automatisch erzeugt","gc.2":"Serviceübergreifende Flows","gc.2s":"deine Szenarien","gc.3":"Bekannte Fehler","gc.3s":"in der Baseline markiert","gc.known":"bekannt","gb.pass":"<i class=\"d p\"></i>50 bestanden","gb.known":"<i class=\"d k\"></i>2 bekannt","gb.total":"52 Prüfungen","m.1":"neue Regressionen","m.2":"Tests bestanden","m.3":"Services","m.4":"Coverage","prob.eyebrow":"Das Problem","prob.h2":"Du hast Testergebnisse. Keine Release-Sicherheit.","prob.p":"MeerGate verwandelt verstreute Testausgaben in die Antwort auf eine Frage: Hat diese Änderung einen kritischen Flow zerstört?","p1.k":"Verstreutes Wissen","p1.h":"Postman, Skripte und Team-Gedächtnis","p1.p":"Kritisches Verhalten steckt in verschiedenen Tools und in den Köpfen der Leute.","p2.k":"Kein Zugriff","p2.h":"Cloud-Runner erreichen keine privaten Services","p2.p":"Order-, Wallet- und Payment-Flows hinter einem VPN lassen sich von außen nicht verifizieren.","p3.k":"Falsche Sicherheit","p3.h":"„57 Tests bestanden“ reicht nicht","p3.p":"Du siehst nicht, was das neue Release gegenüber dem letzten sicheren Verhalten geändert hat.","bridge":"MeerGate<br>verifiziert","out.status":"Bereit zum Ausliefern","out.statusp":"Order-, Wallet- und Payment-Flows verhalten sich wie das letzte sichere Ergebnis.","out.q":"Die Frage, die MeerGate beantwortet","out.qb":"Hat diese Änderung einen kritischen Workflow zerstört?","ev.1":"Neue Regressionen","ev.2":"Services verifiziert","ev.3":"Flow-Nachweis","prob.foot":"Die Entscheidung ergibt sich nicht aus einem einzelnen Endpoint-Ergebnis, sondern aus dem serviceübergreifenden Verhalten, dem Baseline-Diff und dem Ausführungsnachweis.","how.h2":"Von der API zur Release-Entscheidung in vier Schritten","how.p":"Verifiziere einen Endpoint, einen einzelnen Service oder einen kritischen serviceübergreifenden Workflow mit demselben Modell.","s1.n":"01 / VERBINDEN","s1.h":"Entdecke deine Services","s1.p":"Füge Services über OpenAPI, gRPC-Reflection oder vorhandene Endpoint-Infos hinzu.","s2.n":"02 / DEFINIEREN","s2.h":"Beschreibe den Workflow","s2.p":"Baue das erwartete Verhalten mit natürlicher Sprache, dem visuellen Builder oder YAML.","s3.n":"03 / AUSFÜHREN","s3.h":"Verifiziere in deinem eigenen Netzwerk","s3.p":"Führe jeden Schritt lokal, hinter einem VPN oder in Kubernetes aus.","s4.n":"04 / ENTSCHEIDEN","s4.h":"Sieh das Release-Risiko","s4.p":"Vergleiche das neue Ergebnis mit dem letzten sicheren Release: bereit, blockiert oder keine Baseline.","b.eyebrow":"KI, unter menschlicher Kontrolle","b.h2":"Die KI entwirft den Flow. Du behältst die Kontrolle.","b.p":"Prüfe, bearbeite und führe den generierten Plan über den visuellen Builder oder YAML aus.","b.flow":"Flow","b.run":"Ausführen","dn.wallet":"Abhebung versuchen","dn.type":"Prüfung","dn.assert":"Endzustand prüfen","dn.tag":"Guthaben unverändert","b1":"Bei unzureichendem Guthaben muss die Order FAILED sein und das Wallet-Guthaben darf sich nicht ändern.","b2":"Verifiziert, dass die correlation_id zwischen den beiden Services weitergereicht wird.","b3":"Eine Annahme muss geprüft werden: Ist das Retry-Verhalten idempotent?","b.input":"Beschreibe eine Korrektur oder füge eine Assertion hinzu…","f.eyebrow":"Warum MeerGate?","f.h2":"Miss das Release-Risiko, nicht die Testanzahl","f1.p":"Kombiniere Order-, Wallet-, Payment- und Browser-Schritte in einem Szenario.","f2.h":"Mit dem letzten sicheren Release vergleichen","f2.p":"Unterscheide bekannte Fehler von neuen Regressionen dieses Releases.","f3.h":"Laufe in einem privaten Netzwerk","f3.p":"Endpoints, Zugangsdaten und Testdaten verlassen deine Umgebung nie.","f4.h":"Nachweis hinter der Entscheidung","f4.p":"Prüfe Requests, Responses, Assertions, Diffs und Coverage gemeinsam.","sh.eyebrow":"Standardmäßig self-hosted","sh.h2":"Besitze deine Verifizierungs-Infrastruktur","sh.p":"Betreibe MeerGate lokal, hinter einem VPN oder in deinem eigenen Kubernetes. Teste private Services, ohne sie ins Internet zu stellen.","sh.c1":"Schnelle Einrichtung mit Docker Compose","sh.c2":"Eigenes PostgreSQL und Secret-Management","sh.c3":"Eigener LLM-Anbieter oder ein lokales Modell","sh.c4":"SSO-, RBAC- und Audit-Optionen für Enterprise","cta.h2":"Liefere dein nächstes API-Release mit Nachweisen aus, nicht mit Vermutungen.","cta.p":"Von einem einzelnen Endpoint bis zu kritischen serviceübergreifenden Workflows.","cta.btn":"Auf GitHub ansehen ↗","foot.1":"<strong>MeerGate</strong> · Open-Source-Release-Validierung für private APIs.","foot.2":"Produkt · Dokumentation · GitHub · Enterprise","nav.roadmap":"Roadmap","road.eyebrow":"Wohin MeerGate geht","road.h2":"Von der Verifizierung heute zu einem autonomen Release-Agenten","road.p":"Verifizierung ist das Fundament. Die Richtung ist ein Agent, der sie für dich ausführt.","road.here":"Du bist hier","road.soon":"auf der Roadmap","road.l0k":"L0 · Manuell","road.l0p":"Du schreibst, führst aus und liest API-Tests selbst.","road.l1k":"L1 · KI-gestützt","road.l1p":"Beschreibe ein Szenario; die KI baut den ausführbaren Test und du prüfst ihn.","road.l2k":"L2 · Kontinuierliche Verifizierung","road.l2p":"Geplante Wiederholungen, Release-Gates gegen eine Baseline, Coverage-Mapping.","road.l3k":"L3 · Release-Agent","road.l3p":"Ein zielgerichteter Agent plant, führt aus, interpretiert und schlägt die Release-Entscheidung vor.","tab.home":"Start","tab.problem":"Problem","tab.how":"Wie","tab.build":"Bauen","tab.start":"Start"},"es":{"meta.title":"MeerGate — Validación de releases para APIs privadas","nav.product":"Producto","nav.how":"Cómo funciona","nav.self":"Self-hosted","nav.oss":"Código abierto","cta.docker":"Probar con Docker","hero.eyebrow":"Código abierto · Self-hosted · Validación de releases de API","hero.h1":"¿La nueva release rompió un flujo crítico?","hero.lead":"MeerGate ejecuta tus pruebas en tu propia red — <strong>desde una sola API hasta flujos de extremo a extremo entre servicios</strong> — comparándolas con los últimos resultados seguros y entregando la decisión de release con evidencia.","hero.cta2":"Explorar el producto →","trust.1":"Los datos no salen","trust.2":"Sin endpoint público","trust.3":"Usa tu propia clave de IA","gate.status":"Listo para publicar — sin nuevas regresiones","gate.statusp":"Servicios de order, wallet y payment verificados en un solo flujo.","flow.order":"Crear pedido","flow.wallet":"Debitar saldo","flow.payment":"Verificar pago","gc.1":"Comprobaciones de endpoint","gc.1s":"generadas automáticamente","gc.2":"Flujos entre servicios","gc.2s":"tus escenarios","gc.3":"Fallos conocidos","gc.3s":"marcados en la baseline","gc.known":"conocido","gb.pass":"<i class=\"d p\"></i>50 aprobados","gb.known":"<i class=\"d k\"></i>2 conocidos","gb.total":"52 comprobaciones","m.1":"nuevas regresiones","m.2":"pruebas aprobadas","m.3":"servicios","m.4":"cobertura","prob.eyebrow":"El problema","prob.h2":"Tienes resultados de prueba. No confianza para publicar.","prob.p":"MeerGate convierte la salida dispersa de pruebas en la respuesta a una pregunta: ¿este cambio rompió un flujo crítico?","p1.k":"Conocimiento disperso","p1.h":"Postman, scripts y memoria del equipo","p1.p":"El comportamiento crítico vive entre herramientas y en la cabeza de las personas.","p2.k":"Sin acceso","p2.h":"Los runners en la nube no alcanzan servicios privados","p2.p":"Los flujos de order, wallet y payment tras una VPN no pueden verificarse desde fuera.","p3.k":"Confianza falsa","p3.h":"“57 pruebas aprobadas” no basta","p3.p":"No ves qué cambió la nueva release frente al último comportamiento seguro.","bridge":"MeerGate<br>verifica","out.status":"Listo para publicar","out.statusp":"Los flujos de order, wallet y payment se comportan igual que el último resultado seguro.","out.q":"La pregunta que responde MeerGate","out.qb":"¿Este cambio rompió un flujo crítico?","ev.1":"Nuevas regresiones","ev.2":"Servicios verificados","ev.3":"Evidencia de flujo","prob.foot":"La decisión no surge de un único resultado de endpoint, sino del comportamiento entre servicios, el diff de la baseline y la evidencia de ejecución.","how.h2":"De la API a la decisión de release en cuatro pasos","how.p":"Verifica un endpoint, un único servicio o un flujo crítico entre servicios con el mismo modelo.","s1.n":"01 / CONECTAR","s1.h":"Descubre tus servicios","s1.p":"Añade servicios vía OpenAPI, reflection de gRPC o información de endpoint existente.","s2.n":"02 / DEFINIR","s2.h":"Describe el flujo","s2.p":"Construye el comportamiento esperado con lenguaje natural, el builder visual o YAML.","s3.n":"03 / EJECUTAR","s3.h":"Verifica en tu propia red","s3.p":"Ejecuta cada paso en local, tras una VPN o dentro de Kubernetes.","s4.n":"04 / DECIDIR","s4.h":"Ve el riesgo de la release","s4.p":"Compara el nuevo resultado con la última release segura: listo, bloqueado o sin baseline.","b.eyebrow":"IA, bajo control humano","b.h2":"La IA esboza el flujo. Tú mantienes el control.","b.p":"Revisa, edita y ejecuta el plan generado con el builder visual o YAML.","b.flow":"Flujo","b.run":"Ejecutar","dn.wallet":"Intentar retiro","dn.type":"comprobación","dn.assert":"Verificar estado final","dn.tag":"saldo sin cambios","b1":"Con saldo insuficiente el order debe quedar FAILED y el saldo de la wallet no debe cambiar.","b2":"Verificado que correlation_id se propaga entre los dos servicios.","b3":"Un supuesto necesita revisión: ¿el comportamiento de retry es idempotente?","b.input":"Describe una corrección o añade una assertion…","f.eyebrow":"¿Por qué MeerGate?","f.h2":"Mide el riesgo de release, no la cantidad de pruebas","f1.p":"Combina pasos de order, wallet, payment y browser en un solo escenario.","f2.h":"Compara con la última release segura","f2.p":"Distingue los fallos conocidos de las nuevas regresiones que introdujo esta release.","f3.h":"Ejecuta dentro de una red privada","f3.p":"Endpoints, credenciales y datos de prueba nunca salen de tu entorno.","f4.h":"Evidencia detrás de la decisión","f4.p":"Inspecciona requests, responses, assertions, diffs y cobertura juntos.","sh.eyebrow":"Self-hosted por defecto","sh.h2":"Sé dueño de tu infraestructura de validación","sh.p":"Ejecuta MeerGate en local, tras una VPN o en tu propio Kubernetes. Prueba servicios privados sin exponerlos a internet.","sh.c1":"Instalación rápida con Docker Compose","sh.c2":"Tu propio PostgreSQL y gestión de secretos","sh.c3":"Tu propio proveedor de LLM o un modelo local","sh.c4":"Opciones de SSO, RBAC y auditoría para enterprise","cta.h2":"Publica tu próxima release de API con evidencia, no con suposiciones.","cta.p":"Desde un único endpoint hasta flujos críticos entre servicios.","cta.btn":"Explorar en GitHub ↗","foot.1":"<strong>MeerGate</strong> · Validación de releases de código abierto para APIs privadas.","foot.2":"Producto · Documentación · GitHub · Enterprise","nav.roadmap":"Roadmap","road.eyebrow":"Hacia dónde va MeerGate","road.h2":"De la verificación de hoy a un agente de release autónomo","road.p":"La verificación es la base. La dirección es un agente que la ejecuta por ti.","road.here":"Estás aquí","road.soon":"en el roadmap","road.l0k":"L0 · Manual","road.l0p":"Tú escribes, ejecutas y lees las pruebas de API.","road.l1k":"L1 · Asistido por IA","road.l1p":"Describe un escenario; la IA crea la prueba ejecutable y tú la revisas.","road.l2k":"L2 · Verificación continua","road.l2p":"Reejecuciones programadas, release gates contra una baseline, mapeo de cobertura.","road.l3k":"L3 · Agente de release","road.l3p":"Un agente orientado a objetivos planifica, ejecuta, interpreta y propone la decisión de release.","tab.home":"Inicio","tab.problem":"Problema","tab.how":"Cómo","tab.build":"Crear","tab.start":"Empezar"}};
+  function applyLang(lang){
+    const dict = I18N[lang] || I18N.en;
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach((el)=>{const v=dict[el.getAttribute('data-i18n')];if(v!=null)el.textContent=v;});
+    document.querySelectorAll('[data-i18n-html]').forEach((el)=>{const v=dict[el.getAttribute('data-i18n-html')];if(v!=null)el.innerHTML=v;});
+    const label=document.querySelector('[data-lang-label]');if(label)label.textContent=lang.toUpperCase();
+    document.querySelectorAll('.lang-opt').forEach((o)=>o.classList.toggle('active',o.dataset.lang===lang));
+    if(dict['meta.title'])document.title=dict['meta.title'];
+    try{localStorage.setItem('mg-lang',lang);}catch(e){}
+  }
+  (function initLang(){
+    const LANGS=['en','tr','pt','de','es'];let lang='en';
+    try{const s=localStorage.getItem('mg-lang');if(LANGS.includes(s))lang=s;else{const n=(navigator.language||'').toLowerCase();const m=LANGS.find((l)=>n.startsWith(l));if(m)lang=m;}}catch(e){}
+    applyLang(lang);
+    const wrap=document.getElementById('lang'),btn=document.getElementById('langBtn');
+    btn.addEventListener('click',(e)=>{e.stopPropagation();const open=wrap.classList.toggle('open');btn.setAttribute('aria-expanded',open?'true':'false');});
+    document.querySelectorAll('.lang-opt').forEach((opt)=>opt.addEventListener('click',()=>{applyLang(opt.dataset.lang);wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');}));
+    document.addEventListener('click',(e)=>{if(!wrap.contains(e.target)){wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  })();
+
+  // builder chat/yaml tabs
+  document.querySelectorAll('.mb-tabs .mtab').forEach((t)=>t.addEventListener('click',()=>{
+    const v=t.dataset.mview;
+    document.querySelectorAll('.mb-tabs .mtab').forEach((x)=>x.classList.toggle('active',x===t));
+    document.querySelectorAll('.mb-view').forEach((el)=>el.classList.toggle('active',el.classList.contains('mv-'+v)));
+  }));
+
+  // bottom tab scroll-spy
+  (function(){
+    const tabs=[].slice.call(document.querySelectorAll('.tabbar .tab'));
+    const secs=tabs.map((t)=>document.getElementById(t.dataset.tab)).filter(Boolean);
+    let raf=0;
+    function upd(){raf=0;let cur=secs[0];for(const s of secs){if(s.getBoundingClientRect().top-90<=0)cur=s;}
+      if(window.innerHeight+window.scrollY>=document.body.scrollHeight-4)cur=secs[secs.length-1];
+      tabs.forEach((t)=>t.classList.toggle('active',cur&&t.dataset.tab===cur.id));}
+    function onS(){if(!raf)raf=requestAnimationFrame(upd);}
+    upd();window.addEventListener('scroll',onS,{passive:true});window.addEventListener('resize',onS);
+  })();
+</script>
+</body>
+</html>
